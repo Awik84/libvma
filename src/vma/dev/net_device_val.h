@@ -155,6 +155,24 @@ typedef struct slave_data {
 
 typedef std::vector<slave_data_t*> slave_data_vector_t;
 
+typedef struct ip_data {
+	int       flags;
+	in_addr_t local_addr;
+	in_addr_t netmask;
+	ip_data() {
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+	~ip_data() {
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+} ip_data_t;
+
+typedef std::vector<ip_data_t*> ip_data_vector_t;
+
 
 /*
  * Represents Offloading capable device such as eth4, ib1, eth3.5, eth5:6
@@ -199,12 +217,17 @@ public:
 		m_name = ifname;
 		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
 	}
+	ip_data_vector_t* get_ip_array() { return &m_ip;}
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
+	void set_ip_array(struct ifaddrs* ifa);
+
+	void set_str();
+	void print_val();
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
@@ -214,8 +237,6 @@ public:
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() {return m_local_addr;};
-	in_addr_t               get_netmask() {return m_netmask;};
-	bool                    is_valid() { return (INVALID != m_state); }
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -234,8 +255,10 @@ protected:
 	int              m_flags;          /* Device Flags (IFF_x).  */
 	int              m_mtu;            /* MTU of the device. */
 
+	/* See: RFC 3549 2.3.3.2. */
+	ip_data_vector_t m_ip;             /* vector of ip addresses */
+
 	in_addr_t		m_local_addr;
-	in_addr_t		m_netmask;
 	state			m_state;
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
@@ -271,6 +294,7 @@ private:
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	char m_str[BUFF_SIZE];
 };
 
 class net_device_val_eth : public net_device_val
